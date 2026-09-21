@@ -1,0 +1,50 @@
+name: Desafio Docker Nginx Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  test-nginx-container:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Baixar a imagem Nginx do Registry
+        run: |
+          docker pull nginx:alpine
+
+      - name: 2. Criar e executar o container
+        run: |
+          docker run -d --name meu-nginx -p 8080:80 nginx:alpine
+          # Aguarda 2 segundos para garantir que o serviço subiu
+          sleep 2
+
+      - name: 3 e 4. Realizar operação e validar funcionamento
+        run: |
+          echo "=== Testando conexão com o Nginx ==="
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+          
+          echo "Status HTTP retornado: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "SUCESSO: Servidor Nginx está respondendo corretamente!"
+          else
+            echo "ERRO: O servidor não respondeu com status 200."
+            exit 1
+          fi
+
+      - name: 5. Apresentar conteúdo/logs do container
+        run: |
+          echo "=== Conteúdo da resposta ==="
+          curl -s http://localhost:8080
+          
+          echo "=== Logs de execução do Nginx ==="
+          docker logs meu-nginx
+
+      - name: 6. Finalizar e remover o container (Cleanup)
+        if: always()
+        run: |
+          echo "=== Encerrando o container ==="
+          docker stop meu-nginx
+          docker rm meu-nginx
